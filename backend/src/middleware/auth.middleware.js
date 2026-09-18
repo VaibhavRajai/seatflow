@@ -2,15 +2,7 @@ const jwt = require("jsonwebtoken");
 
 const authenticate = (req, res, next) => {
   try {
-    const authHeader = req.cookies.access_token;
-
-    if (!authHeader) {
-      return res.status(401).json({
-        message: "Authentication required",
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
+    const token = req.cookies.access_token;
 
     if (!token) {
       return res.status(401).json({
@@ -22,7 +14,7 @@ const authenticate = (req, res, next) => {
       token,
       process.env.JWT_SECRET
     );
-
+    console.log("Authenticated user:", decoded);
     req.user = decoded;
 
     next();
