@@ -16,7 +16,10 @@ const createUser=async(req,res)=>{
 const getCurrentUser = async (req, res) => {
   res.json({
     message: "You are authenticated",
-    userId: req.user.userId,
+    user: {
+      id: req.user.userId,
+      role: req.user.role,
+    },
   });
 };
 

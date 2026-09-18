@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    border-radius: 0px !important;
   }
 }
 
+:root {
+  --bms-primary: #f84464;
+  --bms-primary-hover: #e51a4b;
+  --bms-dark-nav: #333545;
+  --bms-dark-subnav: #222434;
+  --bg-main: #f5f5fa;
+  --bg-card: #ffffff;
+  --text-primary: #1f2533;
+  --text-secondary: #666666;
+  --border-color: #e5e7eb;
+}
+
+.dark {
+  --bms-primary: #f84464;
+  --bms-primary-hover: #e51a4b;
+  --bms-dark-nav: #1e202b;
+  --bms-dark-subnav: #14151e;
+  --bg-main: #0f1015;
+  --bg-card: #181a24;
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --border-color: #2b2e3d;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  letter-spacing: -0.01em;
+}
+
+/* Custom sharp scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
 }
