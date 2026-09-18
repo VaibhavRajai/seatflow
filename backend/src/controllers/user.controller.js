@@ -13,4 +13,12 @@ const createUser=async(req,res)=>{
     }
 }
 
-module.exports={createUser}
+const getCurrentUser = async (req, res) => {
+  res.json({
+    message: "You are authenticated",
+    userId: req.user.userId,
+  });
+};
+
+
+module.exports={createUser,getCurrentUser}

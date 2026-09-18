@@ -14,4 +14,29 @@ const signup=async(email,password,phoneNumber)=>{
     return {user,token};
 }
 
-module.exports={signup}
+const login=async(email,password)=>{
+    const user=await userModel.findUserByEmail(email)
+    if(!user){
+        throw new Error("Invalid email")
+    }
+    const passwordMatch=await bcrypt.compare(password,user.password_hash)
+     if (!passwordMatch) {
+    throw new Error("Invalid  password");
+  }
+  const token=generateToken(user.id)
+  return{
+    user:{
+         id: user.id,
+      email: user.email,
+      phone_number: user.phone_number,
+      created_at: user.created_at,
+      updated_at: user.updated_at,
+    },
+    token
+  }
+}
+
+module.exports={
+    signup,
+    login
+}
