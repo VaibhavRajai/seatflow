@@ -81,5 +81,5 @@ router.delete(
   authorizeVenueAdmin,
   eventSectionController.removeSectionFromEvent
 );
-
+router.get("/:eventId/seats", eventController.getEventSeats);
 module.exports = router;

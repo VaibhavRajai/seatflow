@@ -1,5 +1,5 @@
 const venueModel = require("../models/venue.model");
-
+const AppError=require('../utils/appError')
 const createVenue = async (
   name,
   description,
@@ -32,7 +32,7 @@ const getVenueById = async (venueId) => {
   const venue = await venueModel.getVenueById(venueId);
 
   if (!venue) {
-    throw new Error("Venue not found");
+    throw new AppError("Venue not found",404);
   }
 
   return venue;

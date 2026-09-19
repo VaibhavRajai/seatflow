@@ -138,7 +138,19 @@ const deleteEvent = async (req, res) => {
     });
   }
 };
+const getEventSeats = async (req, res, next) => {
+  try {
+    const { eventId } = req.params;
 
+    const seats = await eventService.getEventSeats(eventId);
+
+    res.status(200).json({
+      seats,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   createEvent,
   getAdminEvents,
@@ -147,4 +159,5 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
+  getEventSeats
 };

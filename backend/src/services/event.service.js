@@ -117,6 +117,15 @@ const createEvent = async (adminId, eventData) => {
           venueSectionId: section.venueSectionId,
           price: Number(section.price),
         });
+        await client.query(
+    `
+      INSERT INTO event_seats (event_id, seat_id)
+      SELECT $1, id
+      FROM seats
+      WHERE section_id = $2
+    `,
+    [createdEvent.id, section.venueSectionId]
+  );
       }
 
       await client.query("COMMIT");
@@ -223,10 +232,18 @@ const updateEvent = async (eventId, adminId, updateData) => {
     throw error;
   }
 
-  const effectiveStartTime = startTime ? new Date(startTime) : new Date(existingEvent.start_time);
-  const effectiveEndTime = endTime ? new Date(endTime) : new Date(existingEvent.end_time);
+  const effectiveStartTime = startTime
+    ? new Date(startTime)
+    : new Date(existingEvent.start_time);
 
-  if (isNaN(effectiveStartTime.getTime()) || isNaN(effectiveEndTime.getTime())) {
+  const effectiveEndTime = endTime
+    ? new Date(endTime)
+    : new Date(existingEvent.end_time);
+
+  if (
+    isNaN(effectiveStartTime.getTime()) ||
+    isNaN(effectiveEndTime.getTime())
+  ) {
     const error = new Error("Invalid start time or end time format");
     error.statusCode = 400;
     throw error;
@@ -240,8 +257,12 @@ const updateEvent = async (eventId, adminId, updateData) => {
 
   let effectiveVenueAreaId = existingEvent.venue_area_id;
 
-  if (venueAreaId && venueAreaId !== existingEvent.venue_area_id) {
-    const newAreaWithOwner = await venueAreaModel.getVenueAreaWithOwner(venueAreaId);
+  const changingVenueArea =
+    venueAreaId && venueAreaId !== existingEvent.venue_area_id;
+
+  if (changingVenueArea) {
+    const newAreaWithOwner =
+      await venueAreaModel.getVenueAreaWithOwner(venueAreaId);
 
     if (!newAreaWithOwner) {
       const error = new Error("Venue area not found");
@@ -250,27 +271,94 @@ const updateEvent = async (eventId, adminId, updateData) => {
     }
 
     if (newAreaWithOwner.venue_admin_id !== adminId) {
-      const error = new Error("You are not allowed to move event to this venue");
+      const error = new Error(
+        "You are not allowed to move event to this venue"
+      );
       error.statusCode = 403;
       throw error;
-    }
-
-    // Changing venueArea removes previous area's sections to prevent inconsistent section relationships
-    const existingSections = await eventSectionModel.getEventSectionsByEventId(eventId);
-    for (const section of existingSections) {
-      await eventSectionModel.deleteEventSection(section.id);
     }
 
     effectiveVenueAreaId = venueAreaId;
   }
 
-  await eventModel.updateEvent(eventId, {
-    name: name !== undefined ? name.trim() : null,
-    description: description !== undefined ? (description ? description.trim() : null) : null,
-    startTime: startTime ? effectiveStartTime.toISOString() : null,
-    endTime: endTime ? effectiveEndTime.toISOString() : null,
-    venueAreaId: effectiveVenueAreaId,
-  });
+  // Normal update — no venue area change
+  if (!changingVenueArea) {
+    await eventModel.updateEvent(null, eventId, {
+      name: name !== undefined ? name.trim() : null,
+      description:
+        description !== undefined
+          ? description
+            ? description.trim()
+            : null
+          : null,
+      startTime: startTime
+        ? effectiveStartTime.toISOString()
+        : null,
+      endTime: endTime
+        ? effectiveEndTime.toISOString()
+        : null,
+      venueAreaId: null,
+    });
+
+    return await eventModel.getEventDetailsWithSections(eventId);
+  }
+
+  // Venue area is changing → atomic operation
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Delete event seats belonging to old sections
+    await client.query(
+      `
+        DELETE FROM event_seats
+        WHERE event_id = $1
+          AND seat_id IN (
+            SELECT s.id
+            FROM seats s
+            JOIN event_sections es
+              ON es.venue_section_id = s.section_id
+            WHERE es.event_id = $1
+          )
+      `,
+      [eventId]
+    );
+
+    // 2. Delete old event sections
+    await client.query(
+      `
+        DELETE FROM event_sections
+        WHERE event_id = $1
+      `,
+      [eventId]
+    );
+
+    // 3. Update event
+    await eventModel.updateEvent(client, eventId, {
+      name: name !== undefined ? name.trim() : null,
+      description:
+        description !== undefined
+          ? description
+            ? description.trim()
+            : null
+          : null,
+      startTime: startTime
+        ? effectiveStartTime.toISOString()
+        : null,
+      endTime: endTime
+        ? effectiveEndTime.toISOString()
+        : null,
+      venueAreaId: effectiveVenueAreaId,
+    });
+
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 
   return await eventModel.getEventDetailsWithSections(eventId);
 };
@@ -293,7 +381,17 @@ const deleteEvent = async (eventId, adminId) => {
   await eventModel.deleteEvent(eventId);
   return { message: "Event deleted successfully", id: eventId };
 };
+const getEventSeats = async (eventId) => {
+  const event = await eventModel.getEventById(eventId);
 
+  if (!event) {
+    const error = new Error("Event not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return await eventModel.getEventSeats(eventId);
+};
 module.exports = {
   createEvent,
   getAdminEvents,
@@ -302,4 +400,5 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
+  getEventSeats
 };

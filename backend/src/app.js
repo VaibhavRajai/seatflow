@@ -11,6 +11,7 @@ const venueAreaRoutes = require("./routes/venueArea.routes");
 const venueSectionRoutes = require("./routes/venueSection.routes");
 const eventRoutes = require("./routes/event.routes");
 
+const errorHandler=require('./middleware/error.middleware')
 const app = express();
 
 app.use(
@@ -29,5 +30,8 @@ app.use("/api/venues", venueRoutes);
 app.use("/api/venue-areas", venueAreaRoutes);
 app.use("/api/venue-sections", venueSectionRoutes);
 app.use("/api/events", eventRoutes);
+
+
+app.use(errorHandler); // an user defined error handler
 
 module.exports = app;

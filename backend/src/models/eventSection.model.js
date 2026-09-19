@@ -111,14 +111,16 @@ const updateEventSectionPrice = async (eventSectionId, price) => {
   return result.rows[0] || null;
 };
 
-const deleteEventSection = async (eventSectionId) => {
+const deleteEventSection = async (client,eventSectionId) => {
   const query = `
     DELETE FROM event_sections
     WHERE id = $1
     RETURNING id;
   `;
+  const db=client || pool;
 
-  const result = await pool.query(query, [eventSectionId]);
+
+  const result = await db.query(query, [eventSectionId]);
   return result.rows[0] || null;
 };
 

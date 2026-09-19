@@ -317,7 +317,11 @@ const getAllPublicEvents = async () => {
   return Array.from(eventsMap.values());
 };
 
-const updateEvent = async (eventId, { name, description, startTime, endTime, venueAreaId }) => {
+const updateEvent = async (
+  client,
+  eventId,
+  { name, description, startTime, endTime, venueAreaId }
+) => {
   const query = `
     UPDATE events
     SET
@@ -339,8 +343,17 @@ const updateEvent = async (eventId, { name, description, startTime, endTime, ven
       updated_at;
   `;
 
-  const values = [name, description, startTime, endTime, venueAreaId, eventId];
-  const result = await pool.query(query, values);
+  const values = [
+    name,
+    description,
+    startTime,
+    endTime,
+    venueAreaId,
+    eventId,
+  ];
+
+  const result = await client.query(query, values);
+
   return result.rows[0] || null;
 };
 
@@ -355,6 +368,46 @@ const deleteEvent = async (eventId) => {
   return result.rows[0] || null;
 };
 
+const getEventSeats = async (eventId) => {
+  const query = `
+    SELECT
+      es.id AS event_seat_id,
+      es.event_id,
+      es.status,
+
+      s.id AS seat_id,
+      s.row_label,
+      s.seat_number,
+
+      vs.id AS venue_section_id,
+      vs.name AS section_name,
+
+      evs.price
+
+    FROM event_seats es
+
+    JOIN seats s
+      ON s.id = es.seat_id
+
+    JOIN venue_sections vs
+      ON vs.id = s.section_id
+
+    JOIN event_sections evs
+      ON evs.event_id = es.event_id
+      AND evs.venue_section_id = s.section_id
+
+    WHERE es.event_id = $1
+
+    ORDER BY
+      vs.name ASC,
+      s.row_label ASC,
+      s.seat_number ASC;
+  `;
+
+  const result = await pool.query(query, [eventId]);
+
+  return result.rows;
+};
 module.exports = {
   createEvent,
   getEventById,
@@ -364,4 +417,5 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
+  getEventSeats
 };

@@ -1,7 +1,11 @@
 const eventModel = require("../models/event.model");
 const eventSectionModel = require("../models/eventSection.model");
-
-const addSectionToEvent = async (eventId, adminId, { venueSectionId, price }) => {
+const pool=require('../config/database')
+const addSectionToEvent = async (
+  eventId,
+  adminId,
+  { venueSectionId, price }
+) => {
   if (!venueSectionId) {
     const error = new Error("Venue section ID is required");
     error.statusCode = 400;
@@ -9,71 +13,102 @@ const addSectionToEvent = async (eventId, adminId, { venueSectionId, price }) =>
   }
 
   const numericPrice = Number(price);
+
   if (price === undefined || isNaN(numericPrice) || numericPrice < 0) {
     const error = new Error("Price must be greater than or equal to zero");
     error.statusCode = 400;
     throw error;
   }
 
-  // 1. Verify Event exists
   const eventWithOwner = await eventModel.getEventWithOwner(eventId);
+
   if (!eventWithOwner) {
     const error = new Error("Event not found");
     error.statusCode = 404;
     throw error;
   }
 
-  // 2. Verify Event belongs to authenticated admin
   if (eventWithOwner.venue_admin_id !== adminId) {
-    const error = new Error("You are not allowed to manage sections for this event");
+    const error = new Error(
+      "You are not allowed to manage sections for this event"
+    );
     error.statusCode = 403;
     throw error;
   }
 
-  // 3. Verify Venue section exists
-  const sectionWithOwner = await eventSectionModel.getVenueSectionWithOwnerAndArea(venueSectionId);
+  const sectionWithOwner =
+    await eventSectionModel.getVenueSectionWithOwnerAndArea(
+      venueSectionId
+    );
+
   if (!sectionWithOwner) {
     const error = new Error("Venue section not found");
     error.statusCode = 404;
     throw error;
   }
 
-  // 4. Verify Venue section belongs to the SAME venue area as the event
   if (sectionWithOwner.venue_area_id !== eventWithOwner.venue_area_id) {
-    const error = new Error("Section does not belong to the event's venue area");
+    const error = new Error(
+      "Section does not belong to the event's venue area"
+    );
     error.statusCode = 400;
     throw error;
   }
 
-  // 5. Verify section is not already configured for this event
-  const existingSection = await eventSectionModel.getEventSectionByEventAndVenueSection(
-    eventId,
-    venueSectionId
-  );
+  const existingSection =
+    await eventSectionModel.getEventSectionByEventAndVenueSection(
+      eventId,
+      venueSectionId
+    );
+
   if (existingSection) {
     const error = new Error("Section already configured for this event");
     error.statusCode = 400;
     throw error;
   }
 
-  const created = await eventSectionModel.createEventSection(null, {
-    eventId,
-    venueSectionId,
-    price: numericPrice,
-  });
+  const client = await pool.connect();
 
-  return {
-    id: created.id,
-    eventId: created.event_id,
-    venueSectionId: created.venue_section_id,
-    name: sectionWithOwner.name,
-    capacity: sectionWithOwner.capacity,
-    price: parseFloat(created.price),
-    createdAt: created.created_at,
-    updatedAt: created.updated_at,
-  };
+  try {
+    await client.query("BEGIN");
+
+    // Create event section
+    const created = await eventSectionModel.createEventSection(client, {
+      eventId,
+      venueSectionId,
+      price: numericPrice,
+    });
+
+    // Create event-specific inventory
+    await client.query(
+      `
+        INSERT INTO event_seats (event_id, seat_id)
+        SELECT $1, id
+        FROM seats
+        WHERE section_id = $2
+      `,
+      [eventId, venueSectionId]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      id: created.id,
+      eventId: created.event_id,
+      venueSectionId: created.venue_section_id,
+      name: sectionWithOwner.name,
+      capacity: sectionWithOwner.capacity,
+      price: parseFloat(created.price),
+      createdAt: created.created_at,
+      updatedAt: created.updated_at,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
-
 const updateSectionPrice = async (eventId, eventSectionId, adminId, price) => {
   const numericPrice = Number(price);
   if (price === undefined || isNaN(numericPrice) || numericPrice < 0) {
@@ -112,8 +147,14 @@ const updateSectionPrice = async (eventId, eventSectionId, adminId, price) => {
   };
 };
 
-const removeSectionFromEvent = async (eventId, eventSectionId, adminId) => {
-  const eventSectionWithOwner = await eventSectionModel.getEventSectionWithOwner(eventSectionId);
+const removeSectionFromEvent = async (
+  eventId,
+  eventSectionId,
+  adminId
+) => {
+  const eventSectionWithOwner =
+    await eventSectionModel.getEventSectionWithOwner(eventSectionId);
+
   if (!eventSectionWithOwner) {
     const error = new Error("Event section not found");
     error.statusCode = 404;
@@ -127,17 +168,50 @@ const removeSectionFromEvent = async (eventId, eventSectionId, adminId) => {
   }
 
   if (eventSectionWithOwner.venue_admin_id !== adminId) {
-    const error = new Error("You are not allowed to remove sections from this event");
+    const error = new Error(
+      "You are not allowed to remove sections from this event"
+    );
     error.statusCode = 403;
     throw error;
   }
 
-  await eventSectionModel.deleteEventSection(eventSectionId);
+  const client = await pool.connect();
 
-  return {
-    message: "Section removed from event successfully",
-    id: eventSectionId,
-  };
+  try {
+    await client.query("BEGIN");
+
+    // 1. Delete event-specific seats
+    await client.query(
+      `
+        DELETE FROM event_seats
+        WHERE event_id = $1
+          AND seat_id IN (
+            SELECT id
+            FROM seats
+            WHERE section_id = $2
+          )
+      `,
+      [eventId, eventSectionWithOwner.venue_section_id]
+    );
+
+    // 2. Delete event section
+    await eventSectionModel.deleteEventSection(
+      client,
+      eventSectionId
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      message: "Section removed from event successfully",
+      id: eventSectionId,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 const getEventSections = async (eventId) => {
