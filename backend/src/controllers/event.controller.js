@@ -151,6 +151,25 @@ const getEventSeats = async (req, res, next) => {
     next(error);
   }
 };
+const holdSeat = async (req, res, next) => {
+  try {
+    const { eventId, seatId } = req.params;
+    const userId = req.user.userId;
+
+    const result = await eventService.holdSeat(
+      eventId,
+      seatId,
+      userId
+    );
+
+    res.status(200).json({
+      message: "Seat held successfully",
+      seat: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   createEvent,
   getAdminEvents,
@@ -159,5 +178,6 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
-  getEventSeats
+  getEventSeats,
+  holdSeat
 };

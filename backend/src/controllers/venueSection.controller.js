@@ -6,7 +6,6 @@ const createVenueSection = async (req, res) => {
 
     const {
       name,
-      capacity,
       rowsCount,
       seatsPerRow,
     } = req.body;
@@ -17,7 +16,6 @@ const createVenueSection = async (req, res) => {
       venueAreaId,
       adminId,
       name,
-      capacity,
       rowsCount,
       seatsPerRow
     );

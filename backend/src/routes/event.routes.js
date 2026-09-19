@@ -82,4 +82,9 @@ router.delete(
   eventSectionController.removeSectionFromEvent
 );
 router.get("/:eventId/seats", eventController.getEventSeats);
+router.post(
+  "/:eventId/seats/:seatId/hold",
+  authenticate,
+  eventController.holdSeat
+);
 module.exports = router;

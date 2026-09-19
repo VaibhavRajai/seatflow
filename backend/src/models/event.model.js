@@ -408,6 +408,26 @@ const getEventSeats = async (eventId) => {
 
   return result.rows;
 };
+
+const getEventSeatForUpdate = async (client, eventId, seatId) => {
+  const query = `
+    SELECT
+      id,
+      event_id,
+      seat_id,
+      status,
+      held_by,
+      held_until
+    FROM event_seats
+    WHERE event_id = $1
+      AND seat_id = $2
+    FOR UPDATE;
+  `;
+
+  const result = await client.query(query, [eventId, seatId]);
+
+  return result.rows[0] || null;
+};
 module.exports = {
   createEvent,
   getEventById,
@@ -417,5 +437,6 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
-  getEventSeats
+  getEventSeats,
+  getEventSeatForUpdate
 };

@@ -392,6 +392,97 @@ const getEventSeats = async (eventId) => {
 
   return await eventModel.getEventSeats(eventId);
 };
+
+const holdSeat = async (eventId, seatId, userId) => {
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // Lock this event-seat row
+    const eventSeat = await eventModel.getEventSeatForUpdate(
+      client,
+      eventId,
+      seatId
+    );
+
+    if (!eventSeat) {
+      const error = new Error("Seat is not available for this event");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const now = new Date();
+
+    // If the seat is currently held, check whether the hold expired
+    if (eventSeat.status === "HELD") {
+      if (
+        eventSeat.held_until &&
+        new Date(eventSeat.held_until) > now
+      ) {
+        const error = new Error("Seat is currently held");
+        error.statusCode = 409;
+        throw error;
+      }
+
+      // Existing hold has expired → make it available again
+      await client.query(
+        `
+          UPDATE event_seats
+          SET
+            status = 'AVAILABLE',
+            held_by = NULL,
+            held_until = NULL,
+            updated_at = NOW()
+          WHERE id = $1
+        `,
+        [eventSeat.id]
+      );
+
+      eventSeat.status = "AVAILABLE";
+    }
+
+    if (eventSeat.status === "BOOKED") {
+      const error = new Error("Seat is already booked");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // Hold the seat for 10 minutes
+    const heldUntil = new Date(
+      now.getTime() + 10 * 60 * 1000
+    );
+
+    const result = await client.query(
+      `
+        UPDATE event_seats
+        SET
+          status = 'HELD',
+          held_by = $1,
+          held_until = $2,
+          updated_at = NOW()
+        WHERE id = $3
+        RETURNING
+          id,
+          event_id,
+          seat_id,
+          status,
+          held_by,
+          held_until;
+      `,
+      [userId, heldUntil, eventSeat.id]
+    );
+
+    await client.query("COMMIT");
+
+    return result.rows[0];
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
 module.exports = {
   createEvent,
   getAdminEvents,
@@ -400,5 +491,6 @@ module.exports = {
   getAllPublicEvents,
   updateEvent,
   deleteEvent,
-  getEventSeats
+  getEventSeats,
+  holdSeat
 };

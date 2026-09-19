@@ -6,11 +6,11 @@ const createVenueSection = async (
   venueAreaId,
   adminId,
   name,
-  capacity,
   rowsCount,
   seatsPerRow
 ) => {
-  const areaWithOwner = await venueAreaModel.getVenueAreaWithOwner(venueAreaId);
+  const areaWithOwner =
+    await venueAreaModel.getVenueAreaWithOwner(venueAreaId);
 
   if (!areaWithOwner) {
     throw new Error("Venue area not found");
@@ -19,6 +19,8 @@ const createVenueSection = async (
   if (areaWithOwner.venue_admin_id !== adminId) {
     throw new Error("You are not allowed to modify this venue");
   }
+
+  const capacity = rowsCount * seatsPerRow;
 
   const section = await venueSectionModel.createVenueSection(
     venueAreaId,
