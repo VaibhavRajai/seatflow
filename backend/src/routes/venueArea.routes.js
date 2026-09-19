@@ -8,6 +8,8 @@ const router = express.Router();
 
 router.get("/:id", venueAreaController.getVenueAreaById);
 
+router.get("/:venueAreaId/sections", venueSectionController.getSectionsByArea);
+
 router.post(
   "/:venueAreaId/sections",
   authenticate,

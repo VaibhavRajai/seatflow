@@ -218,4 +218,29 @@ export const api = {
     if (!res.ok) throw new Error(data.message || "Failed to fetch venue layout");
     return data;
   },
+
+  // Events
+  getPublicEvents: async () => {
+    const res = await fetch(`${API_BASE}/events`, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch events");
+    return data.events || [];
+  },
+
+  getPublicEventById: async (id: string) => {
+    const res = await fetch(`${API_BASE}/events/${id}`, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch event");
+    return data.event;
+  },
+
+  getAdminEvents: async () => {
+    const res = await fetch(`${API_BASE}/events/admin/my-events`, {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to fetch admin events");
+    return data.events || [];
+  },
 };

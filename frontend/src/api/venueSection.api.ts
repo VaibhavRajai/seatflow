@@ -55,4 +55,14 @@ export const venueSectionApi = {
       cache: "no-store",
     });
   },
+
+  getVenueSectionsByArea: (venueAreaId: string) => {
+    return apiClient<{ sections: Array<{ id: string; venue_area_id: string; name: string; capacity: number; rows_count: number; seats_per_row: number }> }>(
+      `/venue-areas/${venueAreaId}/sections`,
+      {
+        method: "GET",
+        cache: "no-store",
+      }
+    );
+  },
 };

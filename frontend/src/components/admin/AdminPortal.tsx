@@ -14,10 +14,12 @@ import {
   Shield,
   Layers,
   ArrowRight,
+  Calendar,
 } from "lucide-react";
 import { venueApi, Venue } from "../../api/venue.api";
 import { venueAreaApi, VenueArea } from "../../api/venueArea.api";
 import { venueSectionApi, VenueLayout } from "../../api/venueSection.api";
+import { EventManagementTab } from "./EventManagementTab";
 import { SeatGrid } from "../seating/SeatGrid";
 import { LoadingState } from "../common/LoadingState";
 import { ErrorState } from "../common/ErrorState";
@@ -27,7 +29,7 @@ import { useAuth } from "../../context/AuthContext";
 export const AdminPortal: React.FC = () => {
   const { currentUser } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<"venues" | "areas" | "sections" | "layout">("venues");
+  const [activeTab, setActiveTab] = useState<"venues" | "areas" | "sections" | "layout" | "events">("venues");
   const [venues, setVenues] = useState<Venue[]>([]);
   const [selectedVenueId, setSelectedVenueId] = useState<string>("");
   const [areas, setAreas] = useState<VenueArea[]>([]);
@@ -273,7 +275,7 @@ export const AdminPortal: React.FC = () => {
 
       {/* Admin Navigation Tabs */}
       <div className="bg-white dark:bg-[#181a24] border border-zinc-200 dark:border-zinc-800 shadow-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider">
           <button
             onClick={() => setActiveTab("venues")}
             className={`py-3.5 px-4 text-center transition-colors flex items-center justify-center gap-2 cursor-pointer ${
@@ -320,6 +322,17 @@ export const AdminPortal: React.FC = () => {
           >
             <LayoutGrid className="w-4 h-4" />
             <span>4. Seating Layout</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("events")}
+            className={`py-3.5 px-4 text-center transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+              activeTab === "events"
+                ? "border-b-2 border-[#f84464] text-[#f84464] bg-[#f84464]/5"
+                : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+            }`}
+          >
+            <Calendar className="w-4 h-4 text-[#f84464]" />
+            <span>5. Events & Pricing</span>
           </button>
         </div>
       </div>
@@ -626,6 +639,11 @@ export const AdminPortal: React.FC = () => {
             />
           )}
         </div>
+      )}
+
+      {/* TAB 5: Events & Section Pricing Management */}
+      {activeTab === "events" && (
+        <EventManagementTab venues={venues} onNotify={notify} />
       )}
 
       {/* CREATE / EDIT VENUE MODAL */}

@@ -9,6 +9,7 @@ const venueAdminRoutes = require("./routes/venueAdmin.routes");
 const venueRoutes = require("./routes/venue.routes");
 const venueAreaRoutes = require("./routes/venueArea.routes");
 const venueSectionRoutes = require("./routes/venueSection.routes");
+const eventRoutes = require("./routes/event.routes");
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.use("/api/admin/auth", venueAdminRoutes);
 app.use("/api/venues", venueRoutes);
 app.use("/api/venue-areas", venueAreaRoutes);
 app.use("/api/venue-sections", venueSectionRoutes);
+app.use("/api/events", eventRoutes);
 
 module.exports = app;

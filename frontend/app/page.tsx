@@ -14,6 +14,7 @@ import { AuthModal } from "../src/components/auth/AuthModal";
 import { ProtectedRoute } from "../src/components/common/ProtectedRoute";
 import { LoadingState } from "../src/components/common/LoadingState";
 import { EmptyState } from "../src/components/common/EmptyState";
+import { PublicEventsSection } from "../src/components/events/PublicEventsSection";
 import { venueApi, Venue } from "../src/api/venue.api";
 import { Film, Ticket, Clock, Building2, Shield, Search } from "lucide-react";
 
@@ -138,29 +139,10 @@ function MainApp() {
 
         {/* Movies / Events Tab */}
         {activeNav === "events" && (
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-[#181a24] p-6 border border-zinc-200 dark:border-zinc-800 shadow-xs flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-black uppercase text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <Film className="w-6 h-6 text-[#f84464]" />
-                  <span>Explore Movies & Live Shows</span>
-                </h1>
-                <p className="text-xs text-zinc-500">
-                  Select a venue below to inspect available physical screens and seat layouts.
-                </p>
-              </div>
-            </div>
-
-            {loadingVenues ? (
-              <LoadingState message="Loading venues..." />
-            ) : (
-              <VenuesSection
-                venues={venues}
-                currentCity={currentCity}
-                onSelectVenue={handleSelectVenue}
-              />
-            )}
-          </div>
+          <PublicEventsSection
+            currentCity={currentCity}
+            onSelectEventVenue={handleSelectVenue}
+          />
         )}
 
         {/* Cinemas / Venues Directory Tab */}

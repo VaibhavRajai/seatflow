@@ -72,7 +72,31 @@ const getVenueLayout = async (req, res) => {
   }
 };
 
+const getSectionsByArea = async (req, res) => {
+  try {
+    const venueAreaId = req.params.venueAreaId || req.params.areaId;
+    const sections = await venueSectionService.getVenueSectionsByAreaId(venueAreaId);
+
+    res.status(200).json({
+      sections,
+    });
+  } catch (error) {
+    console.error(error);
+
+    if (error.message === "Venue area not found") {
+      return res.status(404).json({
+        message: error.message,
+      });
+    }
+
+    res.status(500).json({
+      message: "Failed to fetch venue sections",
+    });
+  }
+};
+
 module.exports = {
   createVenueSection,
   getVenueLayout,
+  getSectionsByArea,
 };

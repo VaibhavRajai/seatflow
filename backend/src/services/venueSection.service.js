@@ -96,7 +96,18 @@ const getVenueLayout = async (venueId) => {
   };
 };
 
+const getVenueSectionsByAreaId = async (venueAreaId) => {
+  const area = await venueAreaModel.getVenueAreaById(venueAreaId);
+  if (!area) {
+    throw new Error("Venue area not found");
+  }
+
+  const sections = await venueSectionModel.getVenueSectionsByAreaId(venueAreaId);
+  return sections;
+};
+
 module.exports = {
   createVenueSection,
   getVenueLayout,
+  getVenueSectionsByAreaId,
 };

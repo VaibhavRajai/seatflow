@@ -114,7 +114,28 @@ const getVenueLayout = async (venueId) => {
   return result.rows;
 };
 
+const getVenueSectionsByAreaId = async (venueAreaId) => {
+  const query = `
+    SELECT
+      id,
+      venue_area_id,
+      name,
+      capacity,
+      rows_count,
+      seats_per_row,
+      created_at,
+      updated_at
+    FROM venue_sections
+    WHERE venue_area_id = $1
+    ORDER BY created_at ASC, name ASC;
+  `;
+
+  const result = await pool.query(query, [venueAreaId]);
+  return result.rows;
+};
+
 module.exports = {
   createVenueSection,
   getVenueLayout,
+  getVenueSectionsByAreaId,
 };

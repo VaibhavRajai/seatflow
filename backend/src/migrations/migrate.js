@@ -3,16 +3,25 @@ const path = require('path');
 const pool = require('../config/database');
 
 async function runMigration() {
-  const sqlPath = path.join(__dirname, '001_add_venue_areas_and_migrate.sql');
-  const sql = fs.readFileSync(sqlPath, 'utf8');
+  const migrationsDir = __dirname;
+  const files = fs.readdirSync(migrationsDir)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
 
-  console.log('Running migration...');
+  console.log(`Found ${files.length} migration file(s)...`);
   const client = await pool.connect();
+
   try {
-    await client.query('BEGIN');
-    await client.query(sql);
-    await client.query('COMMIT');
-    console.log('Migration executed successfully!');
+    for (const file of files) {
+      const sqlPath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(sqlPath, 'utf8');
+      console.log(`Running migration: ${file}`);
+      await client.query('BEGIN');
+      await client.query(sql);
+      await client.query('COMMIT');
+      console.log(`Successfully applied ${file}`);
+    }
+    console.log('All migrations executed successfully!');
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Migration failed:', error);
