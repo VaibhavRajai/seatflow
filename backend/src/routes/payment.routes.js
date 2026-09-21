@@ -19,4 +19,5 @@ router.post(
   "/webhook",
   paymentController.handleWebhook
 );
+router.post("/fail", authenticate, paymentController.failPayment);
 module.exports = router;

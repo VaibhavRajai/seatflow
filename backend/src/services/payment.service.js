@@ -478,9 +478,145 @@ const processWebhook = async (event) => {
     client.release();
   }
 };
+const failPayment = async (paymentId) => {
+  const client = await pool.connect();
 
+  try {
+    await client.query("BEGIN");
+
+    // 1. Lock the payment
+    const payment = await paymentModel.getPaymentById(
+      client,
+      paymentId
+    );
+
+    if (!payment) {
+      throw new Error("Payment not found");
+    }
+
+    // Payment is already successful → never downgrade it
+    if (payment.status === "SUCCESS") {
+      throw new Error("Successful payment cannot be failed");
+    }
+
+    if (payment.status !== "CREATED") {
+      throw new Error("Payment cannot be failed");
+    }
+
+    // 2. Lock the booking
+    const bookingResult = await client.query(
+      `
+      SELECT
+        id,
+        user_id,
+        event_id,
+        status,
+        total_amount
+      FROM bookings
+      WHERE id = $1
+      FOR UPDATE;
+      `,
+      [payment.booking_id]
+    );
+
+    const booking = bookingResult.rows[0];
+
+    if (!booking) {
+      throw new Error("Booking not found");
+    }
+
+    if (booking.status !== "PENDING") {
+      throw new Error("Booking is not pending");
+    }
+
+    // 3. Lock all seats belonging to the booking
+    const seatResult = await client.query(
+      `
+      SELECT
+        es.id,
+        es.status,
+        es.held_by,
+        es.held_until
+      FROM booking_seats bs
+      JOIN event_seats es
+        ON es.id = bs.event_seat_id
+      WHERE bs.booking_id = $1
+      FOR UPDATE;
+      `,
+      [booking.id]
+    );
+
+    const seats = seatResult.rows;
+
+    if (seats.length === 0) {
+      throw new Error("No seats found for booking");
+    }
+
+    // 4. Make sure seats are still HELD
+    for (const seat of seats) {
+      if (seat.status !== "HELD") {
+        throw new Error(
+          "One or more seats are no longer held"
+        );
+      }
+    }
+
+    // 5. Payment CREATED → FAILED
+    const failedPayment =
+      await paymentModel.markPaymentFailed(
+        client,
+        paymentId
+      );
+
+    if (!failedPayment) {
+      throw new Error("Payment could not be marked as failed");
+    }
+
+    // 6. Release seats
+    await client.query(
+      `
+      UPDATE event_seats
+      SET
+        status = 'AVAILABLE',
+        held_by = NULL,
+        held_until = NULL,
+        updated_at = NOW()
+      WHERE id = ANY($1::uuid[]);
+      `,
+      [seats.map((seat) => seat.id)]
+    );
+
+    // 7. Booking PENDING → CANCELLED
+    await client.query(
+      `
+      UPDATE bookings
+      SET
+        status = 'CANCELLED',
+        updated_at = NOW()
+      WHERE id = $1;
+      `,
+      [booking.id]
+    );
+
+    await client.query("COMMIT");
+
+    return {
+      paymentId: failedPayment.id,
+      bookingId: booking.id,
+      status: "FAILED",
+      bookingStatus: "CANCELLED",
+      seatsReleased: seats.map((seat) => seat.id),
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
 module.exports = {
   confirmPayment,
   createRazorpayOrder,
-  processWebhook
+  processWebhook,
+  failPayment
 };

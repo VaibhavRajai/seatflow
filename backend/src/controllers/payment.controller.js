@@ -83,9 +83,29 @@ const handleWebhook = async (req, res, next) => {
     next(error);
   }
 };
+const failPayment = async (req, res, next) => {
+  try {
+    const { paymentId } = req.body;
 
+    if (!paymentId) {
+      return res.status(400).json({
+        message: "paymentId is required",
+      });
+    }
+
+    const result = await paymentService.failPayment(paymentId);
+
+    res.status(200).json({
+      message: "Payment marked as failed",
+      payment: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 module.exports = {
   createOrder,
   confirmPayment,
-  handleWebhook
+  handleWebhook,
+  failPayment
 };

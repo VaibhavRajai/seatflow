@@ -151,10 +151,36 @@ const updateProviderOrderId = async (
 
   return result.rows[0] || null;
 };
+
+const markPaymentFailed = async (client, paymentId) => {
+  const query = `
+    UPDATE payments
+    SET
+      status = 'FAILED',
+      updated_at = NOW()
+    WHERE id = $1
+      AND status = 'CREATED'
+    RETURNING
+      id,
+      booking_id,
+      provider,
+      provider_order_id,
+      provider_payment_id,
+      amount,
+      status,
+      created_at,
+      updated_at;
+  `;
+
+  const result = await client.query(query, [paymentId]);
+
+  return result.rows[0] || null;
+};
 module.exports = {
   createPayment,
   updatePayment,
   getPaymentById,
   updatePaymentStatus,
-  updateProviderOrderId
+  updateProviderOrderId,
+  markPaymentFailed
 };
