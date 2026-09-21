@@ -658,8 +658,8 @@ npm run dev
 - [x] Payment failure handling
 - [x] Webhook processing
 - [x] Webhook idempotency
-- [ ] Payment reconciliation
-- [ ] Refund workflow
+- [x] Payment reconciliation
+- [x] Refund workflow
 
 ### Infrastructure
 
@@ -671,21 +671,21 @@ npm run dev
 - [x] Retry backoff
 - [x] Delayed jobs
 - [x] Worker concurrency
-- [ ] Redis caching
-- [ ] Cache invalidation
-- [ ] Structured logging
-- [ ] Metrics
-- [ ] Error tracking
+- [x] Redis caching
+- [x] Cache invalidation
+- [x] Structured logging
+- [x] Metrics
+- [x] Error tracking
 
 ### Product
 
-- [ ] Google OAuth
-- [ ] Advanced seat-map interface
-- [ ] Email notifications
-- [ ] Event reminders
-- [ ] Booking analytics
-- [ ] Admin analytics
-- [ ] Event publishing workflow
+- [x] Google OAuth
+- [x] Advanced seat-map interface
+- [x] Email notifications
+- [x] Event reminders
+- [x] Booking analytics
+- [x] Admin analytics
+- [x] Event publishing workflow
 
 ---
 
