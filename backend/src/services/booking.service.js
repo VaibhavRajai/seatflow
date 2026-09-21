@@ -1,5 +1,6 @@
 const pool = require("../config/database");
 const bookingModel = require("../models/booking.model");
+const paymentModel = require("../models/payment.model");
 
 const createBooking = async (userId, eventId, eventSeatIds) => {
   const client = await pool.connect();
@@ -45,24 +46,18 @@ const createBooking = async (userId, eventId, eventSeatIds) => {
      */
     for (const seat of seats) {
       if (seat.status !== "HELD") {
-        throw new Error(
-          "All seats must be held before booking"
-        );
+        throw new Error("All seats must be held before booking");
       }
 
       if (seat.held_by !== userId) {
-        throw new Error(
-          "You can only book seats held by you"
-        );
+        throw new Error("You can only book seats held by you");
       }
 
       if (
         !seat.held_until ||
         new Date(seat.held_until) <= now
       ) {
-        throw new Error(
-          "One or more seat holds have expired"
-        );
+        throw new Error("One or more seat holds have expired");
       }
     }
 
@@ -70,22 +65,22 @@ const createBooking = async (userId, eventId, eventSeatIds) => {
      * 3. Get the prices for these seats.
      */
     const priceResult = await client.query(
-      `
-      SELECT
-        es.id AS event_seat_id,
-        es.section_id,
-        evs.price
-      FROM event_seats es
-      JOIN seats s
-        ON s.id = es.seat_id
-      JOIN event_sections evs
-        ON evs.event_id = es.event_id
-        AND evs.venue_section_id = s.section_id
-      WHERE es.event_id = $1
-        AND es.id = ANY($2::uuid[]);
-      `,
-      [eventId, eventSeatIds]
-    );
+  `
+  SELECT
+    es.id AS event_seat_id,
+    s.section_id,
+    evs.price
+  FROM event_seats es
+  JOIN seats s
+    ON s.id = es.seat_id
+  JOIN event_sections evs
+    ON evs.event_id = es.event_id
+    AND evs.venue_section_id = s.section_id
+  WHERE es.event_id = $1
+    AND es.id = ANY($2::uuid[]);
+  `,
+  [eventId, eventSeatIds]
+);
 
     const seatPrices = priceResult.rows;
 
@@ -99,6 +94,9 @@ const createBooking = async (userId, eventId, eventSeatIds) => {
 
     /*
      * 5. Create the booking.
+     *
+     * Booking remains PENDING because
+     * payment has not happened yet.
      */
     const booking = await bookingModel.createBooking(
       client,
@@ -108,7 +106,18 @@ const createBooking = async (userId, eventId, eventSeatIds) => {
     );
 
     /*
-     * 6. Create booking_seats records.
+     * 6. Create the payment record.
+     *
+     * Payment starts with CREATED status.
+     */
+    const payment = await paymentModel.createPayment(
+      client,
+      booking.id,
+      totalAmount
+    );
+
+    /*
+     * 7. Attach all selected seats to the booking.
      */
     for (const seat of seatPrices) {
       await bookingModel.createBookingSeat(
@@ -120,41 +129,27 @@ const createBooking = async (userId, eventId, eventSeatIds) => {
     }
 
     /*
-     * 7. Convert HELD → BOOKED.
+     * Do NOT convert seats to BOOKED yet.
+     *
+     * Current state:
+     *
+     * Seat    -> HELD
+     * Booking -> PENDING
+     * Payment -> CREATED
+     *
+     * After successful payment, we will:
+     *
+     * Seat    -> BOOKED
+     * Booking -> CONFIRMED
+     * Payment -> SUCCESS
      */
-    await client.query(
-      `
-      UPDATE event_seats
-      SET
-        status = 'BOOKED',
-        held_by = NULL,
-        held_until = NULL,
-        updated_at = NOW()
-      WHERE event_id = $1
-        AND id = ANY($2::uuid[]);
-      `,
-      [eventId, eventSeatIds]
-    );
-
-    /*
-     * 8. Booking is complete.
-     */
-    await client.query(
-      `
-      UPDATE bookings
-      SET
-        status = 'CONFIRMED',
-        updated_at = NOW()
-      WHERE id = $1;
-      `,
-      [booking.id]
-    );
 
     await client.query("COMMIT");
 
     return {
       bookingId: booking.id,
-      status: "CONFIRMED",
+      paymentId: payment.id,
+      status: "PENDING",
       totalAmount,
       eventSeatIds,
     };

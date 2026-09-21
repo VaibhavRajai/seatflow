@@ -11,6 +11,7 @@ const venueAreaRoutes = require("./routes/venueArea.routes");
 const venueSectionRoutes = require("./routes/venueSection.routes");
 const eventRoutes = require("./routes/event.routes");
 const bookingRoutes=require('./routes/booking.routes')
+const paymentRoutes=require('./routes/payment.routes')
 const errorHandler=require('./middleware/error.middleware')
 const app = express();
 
@@ -20,7 +21,13 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json());
+app.use(express.json({
+  verify:(req,res,buf)=>{
+    if(req.originalUrl==="/api/payments/webhook"){
+      req.rawBody=buf;
+    }
+  }
+}));
 app.use(cookieParser());
 
 app.use("/api/users", userRoutes);
@@ -31,7 +38,7 @@ app.use("/api/venue-areas", venueAreaRoutes);
 app.use("/api/venue-sections", venueSectionRoutes);
 app.use("/api/events", eventRoutes);
 app.use('/api/bookings',bookingRoutes)
-
+app.use('/api/payments',paymentRoutes)
 app.use(errorHandler); // an user defined error handler
 
 module.exports = app;
